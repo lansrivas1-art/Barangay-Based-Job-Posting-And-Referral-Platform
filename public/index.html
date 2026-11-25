@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barangay-Based Job Posting and Referral Platform</title>
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f7fa; }
+        header { background: #2c3e50; color: white; padding: 20px; text-align: center; border-radius: 8px; }
+        .form-section { background: white; padding: 25px; margin: 20px 0; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input, textarea { width: 100%; padding: 10px; margin: 5px 0 15px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #27ae60; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; margin-right: 8px; }
+        button:hover { opacity: 0.9; }
+        .btn-delete { background: #e74c3c; }
+        .btn-edit { background: #f39c12; }
+        .job-card { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; border-left: 4px solid #27ae60; }
+        .job-card h3 { margin-top: 0; color: #2c3e50; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🏘️ Barangay-Based Job Posting and Referral Platform</h1>
+    <p>Connecting Local Residents to Local Opportunities</p>
+</header>
+
+<!-- CREATE FORM -->
+<div class="form-section">
+    <h2>➕ Post New Job Vacancy</h2>
+    <form id="jobForm">
+        <input type="text" id="title" placeholder="Job Title" required>
+        <input type="text" id="company" placeholder="Company / Employer Name" required>
+        <textarea id="description" placeholder="Job Description & Requirements" rows="4" required></textarea>
+        <input type="text" id="location" placeholder="Barangay / Location" required>
+        <input type="text" id="salary" placeholder="Salary Range (Optional)">
+        <input type="text" id="contact" placeholder="Contact Number / Email" required>
+        <button type="submit">Save Job Post</button>
+    </form>
+</div>
+
+<!-- JOB LISTINGS -->
+<h2>📋 Available Job Openings</h2>
+<div id="jobsList"></div>
+
+<script>
+const API_URL = '/api/jobs';
+let editMode = null;
+
+window.onload = fetchJobs;
+
+async function fetchJobs() {
+    const res = await fetch(API_URL);
+    const jobs = await res.json();
+    displayJobs(jobs);
+}
+
+function displayJobs(jobs) {
+    const container = document.getElementById('jobsList');
+    container.innerHTML = '';
+    
+    if (jobs.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#666;">No job postings yet. Be the first to post!</p>';
+        return;
+    }
+    
+    jobs.forEach(job => {
+        container.innerHTML += `
+            <div class="job-card">
+                <h3>${job.title}</h3>
+                <p><strong>Company:</strong> ${job.company}</p>
+                <p><strong>Location:</strong> ${job.location}</p>
+                <p><strong>Description:</strong> ${job.description}</p>
+                <p><strong>Salary:</strong> ${job.salary || 'Not specified'}</p>
+                <p><strong>Contact:</strong> ${job.contact}</p>
+                <small>Posted: ${new Date(job.createdAt).toLocaleString()}</small>
+                <br><br>
+                <button class="btn-edit" onclick="editJob('${job._id}')">✏️ Edit</button>
+                <button class="btn-delete" onclick="deleteJob('${job._id}')">🗑️ Delete</button>
+            </div>
+        `;
+    });
+}
+
+document.getElementById('jobForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const jobData = {
+        title: document.getElementById('title').value,
+        company: document.getElementById('company').value,
+        description: document.getElementById('description').value,
+        location: document.getElementById('location').value,
+        salary: document.getElementById('salary').value,
+        contact: document.getElementById('contact').value
+    };
+    
+    if (editMode) {
+        await fetch(`${API_URL}/${editMode}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jobData)
+        });
+        editMode = null;
+        this.querySelector('button[type="submit"]').textContent = 'Save Job Post';
+    } else {
+        await fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(jobData)
+        });
+    }
+    
+    this.reset();
+    fetchJobs();
+});
+
+async function editJob(id) {
+    const res = await fetch(`${API_URL}/${id}`);
+    const job = await res.json();
+    
+    document.getElementById('title').value = job.title;
+    document.getElementById('company').value = job.company;
+    document.getElementById('description').value = job.description;
+    document.getElementById('location').value = job.location;
+    document.getElementById('salary').value = job.salary;
+    document.getElementById('contact').value = job.contact;
+    
+    editMode = id;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    document.querySelector('button[type="submit"]').textContent = 'Update Job Post';
+}
+
+async function deleteJob(id) {
+    if (confirm('Are you sure you want to delete this job posting?')) {
+        await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+        fetchJobs();
+    }
+}
+</script>
+
+</body>
+</html>
